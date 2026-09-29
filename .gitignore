@@ -6,3 +6,7 @@ dist/
 .DS_Store
 test-results/
 .tmp/
+
+# Activation codes: never commit them (the repo is public)
+codes*.txt
+*.codes.txt

@@ -102,6 +102,15 @@ select, input[type=number], input[type=text] {
   margin: 0 0 10px;
 }
 .foot { color: var(--muted); font-size: 12px; text-align: center; }
+.activation { border-color: var(--accent); }
+.activation .meta { margin: 4px 0 8px; }
+.activate-row { display: flex; gap: 6px; }
+.activate-row input { font-family: ui-monospace, monospace; letter-spacing: .02em; text-transform: uppercase; }
+.btn {
+  flex: none; padding: 6px 12px; border: 0; border-radius: 6px; cursor: pointer;
+  background: var(--accent); color: #fff; font: inherit; font-weight: 600;
+}
+.btn:disabled { opacity: .6; cursor: default; }
 .foot a { color: var(--accent); }
 kbd {
   font: 11px ui-monospace, monospace; padding: 1px 4px; border-radius: 4px;

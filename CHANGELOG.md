@@ -2,6 +2,12 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie: [SemVer](https://semver.org/lang/pl/).
 
+## [1.1.0] – 2026-09-29
+
+### Dodane
+- Aktywacja wtyczki kodem (`MOB-XXXX-XXXX-XXXX-XXXX`). Działa offline, a do wtyczki trafiają tylko solone skróty SHA-256 kodów. Formularz w popupie, dezaktywacja wyłącza emulację we wszystkich kartach.
+- `scripts/generate-codes.mjs` generuje nowy zestaw kodów albo dopisuje kody do obecnego.
+
 ## [1.0.1] – 2026-09-29
 
 ### Zmienione

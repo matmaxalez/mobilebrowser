@@ -14,6 +14,18 @@
     </div>
   </header>
 
+  <section class="card activation" id="activation" hidden>
+    <strong>Aktywuj wtyczkę</strong>
+    <p class="meta">Wpisz kod aktywacyjny, aby włączać widok mobilny.</p>
+    <form id="activateForm" class="activate-row" autocomplete="off">
+      <input type="text" id="code" placeholder="MOB-XXXX-XXXX-XXXX-XXXX" spellcheck="false" autocapitalize="characters" maxlength="40" aria-label="Kod aktywacyjny">
+      <button type="submit" class="btn" id="activateBtn">Aktywuj</button>
+    </form>
+  </section>
+
+  <p class="error" id="error" hidden></p>
+
+  <div id="main">
   <section class="card status" id="statusCard">
     <div class="status-text">
       <strong id="statusLabel">Wyłączony</strong>
@@ -25,7 +37,6 @@
     </label>
   </section>
 
-  <p class="error" id="error" hidden></p>
 
   <section class="card">
     <label class="field">
@@ -90,7 +101,12 @@
     <label class="check"><input type="checkbox" id="inherit"> Nowe karty otwarte z emulowanej karty też emuluj</label>
   </section>
 
-  <footer class="foot">Skrót: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd> · <a href="#" id="shortcuts">zmień</a></footer>
+  </div>
+
+  <footer class="foot">
+    <span id="shortcutInfo">Skrót: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd> · <a href="#" id="shortcuts">zmień</a></span>
+    <span id="licenseInfo" hidden><br>✓ Aktywowano · <a href="#" id="deactivate">dezaktywuj</a></span>
+  </footer>
 
   <script type="module" src="popup.js"></script>
 </body>

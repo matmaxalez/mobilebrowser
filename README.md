@@ -39,6 +39,27 @@ Karta wygląda normalnie: nie ma ramki telefonu ani małego okienka. Strona dost
 
 <br clear="right">
 
+## Aktywacja
+
+<img src="docs/img/activation.png" width="300" align="right" alt="Aktywacja wtyczki">
+
+Po instalacji wtyczka prosi o **kod aktywacyjny** w formacie `MOB-XXXX-XXXX-XXXX-XXXX`. Kliknij ikonę wtyczki, wpisz kod i kliknij **Aktywuj**. Wielkość liter, spacje i myślniki nie mają znaczenia. Kod sprawdzany jest offline i wpisuje się go tylko raz. Dezaktywacja: link „dezaktywuj” na dole okna wtyczki.
+
+<details>
+<summary>Dla właściciela: generowanie kodów</summary>
+
+```bash
+node scripts/generate-codes.mjs --out ~/kody.txt                  # nowy zestaw 100 kodów (stare przestają działać)
+node scripts/generate-codes.mjs --count 50 --append --out ~/kody.txt  # dopisz 50 kodów, stare zostają ważne
+```
+
+Do repozytorium trafia tylko `extension/src/license-hashes.js` z solonymi skrótami SHA-256, a same kody zapisują się do wskazanego pliku. **Nie commituj pliku z kodami**, bo repozytorium jest publiczne. `.gitignore` blokuje nazwy `codes*.txt`. Po wygenerowaniu kodów zbuduj i wydaj nową wersję.
+
+Aktywacja działa lokalnie, bez serwera. Jeden kod działa na dowolnej liczbie komputerów i nie da się go zdalnie unieważnić. Ktoś, kto zmodyfikuje kod źródłowy wtyczki, może też obejść blokadę. To zabezpieczenie przed przypadkowym użyciem, a nie DRM.
+</details>
+
+<br clear="right">
+
 ## Instalacja
 
 ### Windows – jednym poleceniem (najprościej)

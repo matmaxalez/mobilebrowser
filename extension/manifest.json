@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Mobile Emulator – widok mobilny stron",
   "short_name": "Mobile Emulator",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Strony w tej karcie widzą telefon z Androidem lub iPhone'a i pokazują wersję mobilną – bez ramki, w pełnej karcie.",
   "homepage_url": "https://github.com/matmaxalez/mobilebrowser",
   "minimum_chrome_version": "116",

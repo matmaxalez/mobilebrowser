@@ -5,7 +5,8 @@ const els = {
   error: $('error'), device: $('device'), meta: $('deviceMeta'), viewport: $('viewport'), viewportField: $('viewportField'),
   customBox: $('customBox'), cWidth: $('cWidth'), cHeight: $('cHeight'), cDpr: $('cDpr'), cOs: $('cOs'),
   cTablet: $('cTablet'), cUa: $('cUa'), liteWindow: $('liteWindow'), liteWindowRow: $('liteWindowRow'),
-  inherit: $('inherit')
+  inherit: $('inherit'), activation: $('activation'), main: $('main'), code: $('code'),
+  activateForm: $('activateForm'), activateBtn: $('activateBtn'), licenseInfo: $('licenseInfo')
 };
 
 let tabId = null;
@@ -13,6 +14,7 @@ let settings = null;
 let devices = [];
 let tabState = null;
 let restricted = false;
+let activated = false;
 let busy = false;
 
 async function send(msg) {
@@ -56,6 +58,12 @@ function currentDevice() {
 }
 
 function render() {
+  els.activation.hidden = activated;
+  els.main.hidden = !activated;
+  els.licenseInfo.hidden = !activated;
+  els.activateBtn.disabled = busy;
+  if (!activated) return;
+
   const on = !!tabState;
   const lite = (tabState?.mode || settings.mode) === 'lite';
   els.card.classList.toggle('on', on);
@@ -125,6 +133,7 @@ async function refresh() {
     settings = res.settings;
     tabState = res.tabState;
     restricted = res.restricted;
+    activated = res.activated;
   } catch (_) { /* keep what we have */ }
 }
 
@@ -138,7 +147,7 @@ async function init() {
     tabId = tab?.id ?? null;
   }
   const res = await send({ type: 'getState', tabId });
-  ({ settings, devices, tabState, restricted } = res);
+  ({ settings, devices, tabState, restricted, activated } = res);
   renderDevices();
   render();
 
@@ -173,6 +182,29 @@ async function init() {
   });
   for (const el of [els.cWidth, els.cHeight, els.cDpr, els.cUa]) el.addEventListener('change', customChanged);
   for (const el of [els.cOs, els.cTablet]) el.addEventListener('change', customChanged);
+
+  els.activateForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    busy = true; render(); showError('');
+    try {
+      await send({ type: 'activate', code: els.code.value });
+      els.code.value = '';
+    } catch (err) {
+      showError(err.message);
+    }
+    await refresh();
+    busy = false; render();
+    if (!activated) els.code.focus();
+  });
+
+  $('deactivate').addEventListener('click', async e => {
+    e.preventDefault();
+    if (!confirm('Dezaktywować wtyczkę? Emulacja zostanie wyłączona we wszystkich kartach, a do ponownego włączenia potrzebny będzie kod.')) return;
+    busy = true; render(); showError('');
+    try { await send({ type: 'deactivate' }); } catch (err) { showError(err.message); }
+    await refresh();
+    busy = false; render();
+  });
 
   $('shortcuts').addEventListener('click', e => {
     e.preventDefault();

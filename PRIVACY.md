@@ -1,6 +1,6 @@
 # Polityka prywatności – Mobile Emulator
 
-_Ostatnia aktualizacja: 29 września 2026_
+_Ostatnia aktualizacja: 29 września 2026 (wersja 1.1.0)_
 
 Mobile Emulator to rozszerzenie przeglądarki Chrome. Sprawia, że strony w wybranej karcie wyświetlają się tak, jak na telefonie.
 
@@ -13,7 +13,8 @@ Mobile Emulator to rozszerzenie przeglądarki Chrome. Sprawia, że strony w wybr
 Rozszerzenie zapisuje wyłącznie własne ustawienia, i to tylko lokalnie w Twojej przeglądarce:
 
 - `chrome.storage.local` – wybrane urządzenie, tryb, widok i orientacja;
-- `chrome.storage.session` – które karty mają włączoną emulację. Te dane znikają po zamknięciu przeglądarki.
+- `chrome.storage.session` – które karty mają włączoną emulację. Te dane znikają po zamknięciu przeglądarki;
+- `chrome.storage.local` – informacja o aktywacji: skrót (hash) wpisanego kodu i data aktywacji. Kod sprawdzany jest lokalnie i nigdzie nie jest wysyłany.
 
 Ustawienia nie są synchronizowane między urządzeniami i nie opuszczają Twojego komputera.
 

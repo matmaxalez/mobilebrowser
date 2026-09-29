@@ -57,7 +57,7 @@ export async function startServer(port = 0) {
   return { server, url: `http://127.0.0.1:${server.address().port}/probe` };
 }
 
-export async function launch({ ignoreHTTPSErrors = false } = {}) {
+export async function launch({ ignoreHTTPSErrors = false, activated = true } = {}) {
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mobemu-'));
   const context = await chromium.launchPersistentContext(userDataDir, {
     channel: 'chromium',
@@ -75,7 +75,17 @@ export async function launch({ ignoreHTTPSErrors = false } = {}) {
   const extId = new URL(sw.url()).host;
   const ext = await context.newPage();
   await ext.goto(`chrome-extension://${extId}/popup/popup.html`);
+  if (activated) await activateForTests(ext);
   return { context, sw, extId, ext, userDataDir };
+}
+
+// Real codes are secret (only their hashes ship), so tests store one of the
+// valid hashes directly - exactly what a successful activation stores.
+export async function activateForTests(ext) {
+  await ext.evaluate(async () => {
+    const { LICENSE_HASHES } = await import('../src/license-hashes.js');
+    await chrome.storage.local.set({ license: { hash: LICENSE_HASHES[0], activatedAt: 'test' } });
+  });
 }
 
 // Sends a message to the background worker from an extension page.

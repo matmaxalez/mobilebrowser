@@ -38,6 +38,16 @@ try {
   await popup.waitForSelector('#deviceMeta:not(:empty)');
   await popup.screenshot({ path: out('docs', 'img', 'popup.png'), fullPage: true });
 
+  // Activation form (as seen before entering a code).
+  const lic = await popup.evaluate(async () => (await chrome.storage.local.get('license')).license);
+  await popup.evaluate(() => chrome.storage.local.remove('license'));
+  await popup.reload();
+  await popup.waitForSelector('#activation:not([hidden])');
+  await popup.fill('#code', 'MOB-');
+  await popup.setViewportSize({ width: 364, height: 240 });
+  await popup.screenshot({ path: out('docs', 'img', 'activation.png') });
+  await popup.evaluate(l => chrome.storage.local.set({ license: l }), lic);
+
   // Store screenshot 3: the popup presented on a plain background.
   const popupPng = fs.readFileSync(out('docs', 'img', 'popup.png')).toString('base64');
   const card = await br.context.newPage();

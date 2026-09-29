@@ -1,6 +1,7 @@
 import {
   DEVICES, resolveDevice, getBrowserVersion, buildProfile, buildHeaders, orientedSize
 } from './devices.js';
+import { isActivated, activate, deactivate } from './license.js';
 import './spoof.js';
 
 const mobileSpoof = globalThis.__mobileEmuSpoof;
@@ -413,12 +414,15 @@ async function disableTab(tabId, { reload = true } = {}) {
   }
 }
 
+const NOT_ACTIVATED = 'Wtyczka nie jest aktywowana. Wpisz kod aktywacyjny w oknie wtyczki.';
+
 async function toggleTab(tabId) {
   return queued(tabId, async () => {
     if (await getTabState(tabId)) {
       await disableTab(tabId);
       return null;
     }
+    if (!(await isActivated())) throw new Error(NOT_ACTIVATED);
     return enableTab(tabId, snapshot(await getSettings()));
   });
 }
@@ -552,9 +556,13 @@ chrome.windows.onBoundsChanged?.addListener(async win => {
 chrome.commands.onCommand.addListener(async command => {
   if (command !== 'toggle-emulation') return;
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-  if (tab?.id != null) {
-    try { await toggleTab(tab.id); } catch (e) { console.warn('Mobile Emulator:', e.message); }
+  if (tab?.id == null) return;
+  if (!(await isActivated()) && !(await getTabState(tab.id))) {
+    // Show the activation form instead of failing silently.
+    try { await chrome.action.openPopup(); } catch (_) { /* not supported / no focused window */ }
+    return;
   }
+  try { await toggleTab(tab.id); } catch (e) { console.warn('Mobile Emulator:', e.message); }
 });
 
 // ---------------------------------------------------------------------------
@@ -579,11 +587,24 @@ async function handleMessage(msg) {
       let tab = null;
       try { tab = await chrome.tabs.get(msg.tabId); } catch (_) { /* none */ }
       return {
+        activated: await isActivated(),
         settings,
         devices: DEVICES,
         tabState: tab ? await getTabState(tab.id) : null,
         restricted: tab ? isRestrictedUrl(tab.url || tab.pendingUrl) : true
       };
+    }
+    case 'activate': {
+      await activate(msg.code);
+      return { activated: true };
+    }
+    case 'deactivate': {
+      // Turn emulation off everywhere, then forget the activation.
+      for (const id of Object.keys(await loadTabs())) {
+        try { await queued(Number(id), () => disableTab(Number(id))); } catch (_) { /* tab gone */ }
+      }
+      await deactivate();
+      return { activated: false };
     }
     case 'toggle': {
       const tabState = await toggleTab(msg.tabId);
