@@ -123,7 +123,7 @@ npm run icons         # generuje ikony PNG
 
 Strukturę projektu i konwencje opisuje [CLAUDE.md](CLAUDE.md). Research i decyzje techniczne są w [docs/RESEARCH.md](docs/RESEARCH.md).
 
-Nowa wersja: podbij `version` w `extension/manifest.json` i `package.json`, dopisz zmiany do [CHANGELOG.md](CHANGELOG.md), a potem wykonaj `git tag v1.2.3 && git push --tags`. GitHub Actions zbuduje ZIP i opublikuje go jako Release.
+Nowa wersja: podbij `version` w `extension/manifest.json` i `package.json` i dopisz zmiany do [CHANGELOG.md](CHANGELOG.md). Potem wypchnij tag (`git tag v1.2.3 && git push --tags`) albo uruchom ręcznie workflow **Actions → Release → Run workflow**. GitHub Actions zbuduje ZIP i opublikuje go jako Release.
 
 ## Licencja
 

@@ -60,7 +60,7 @@ Two modes, chosen in the popup and stored per tab in `chrome.storage.session`:
 - Test hooks: the popup accepts `?tab=<id>`, and tests send messages (`getState`, `toggle`, `saveSettings`) from an extension page. Playwright's own `page.click` hangs while mouse→touch emulation is on, so click via `page.evaluate`.
 - `chrome.debugger.getTargets()` reports `attached: true` for tabs Playwright controls, so don't assert on it in tests.
 - Restricted URLs (`chrome://`, Web Store, …) are refused in `isRestrictedUrl`.
-- Bump `version` in both `extension/manifest.json` and `package.json`, update `CHANGELOG.md`, then tag `vX.Y.Z`. The release workflow builds the zip and checks that the tag matches the manifest.
+- Bump `version` in both `extension/manifest.json` and `package.json`, update `CHANGELOG.md`, then tag `vX.Y.Z` or run the Release workflow manually (`workflow_dispatch`, creates the tag from the manifest). The release workflow builds the zip and checks that the tag matches the manifest.
 - Inherited tabs (`tabs.onCreated` with `openerTabId`) are reloaded only when they have an http(s)/file URL. Blank popups the opener writes into must not be reloaded.
 - `saveSettings` only re-applies (and possibly reloads) an emulated tab when its per-tab snapshot actually changed.
 - Known gap: in lite mode, requests made by a site's service worker carry `tabId -1` and bypass the tab-scoped rules.
