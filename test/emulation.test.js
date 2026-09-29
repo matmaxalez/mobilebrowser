@@ -104,7 +104,9 @@ test('full mode, device viewport: iPhone 1:1 (viewport, DPR, touch, UA, no clien
   // Tabs opened from the emulated tab inherit emulation.
   const [child] = await Promise.all([br.context.waitForEvent('page'), page.evaluate(() => document.getElementById('blank').click())]);
   await child.waitForLoadState('load');
-  await child.waitForFunction(() => window.__probe && /Android/.test(navigator.userAgent), null, { timeout: 15000 });
+  // Wait for the reloaded document (the server must have seen the mobile UA).
+  await child.waitForFunction(() => window.__probe && /Android/.test(window.__probe.server['user-agent']), null, { timeout: 15000 })
+    .catch(() => child.waitForFunction(() => window.__probe && /Android/.test(window.__probe.server['user-agent']), null, { timeout: 15000 }));
   const pc = await probe(child);
   assert.match(pc.server['user-agent'], /Android/);
   await child.close();

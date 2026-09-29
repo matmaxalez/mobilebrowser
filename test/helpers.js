@@ -90,9 +90,18 @@ export async function tabIdOf(ext, url) {
   }, url);
 }
 
+// Retries when the page navigates/reloads mid-read (e.g. inherited tabs are
+// reloaded once emulation is attached).
 export async function probe(page) {
-  await page.waitForFunction(() => window.__probe, null, { timeout: 10000 });
-  return page.evaluate(() => window.__probe);
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await page.waitForFunction(() => window.__probe, null, { timeout: 10000 });
+      return await page.evaluate(() => window.__probe);
+    } catch (e) {
+      if (attempt >= 5 || !/context was destroyed|navigation/i.test(e.message)) throw e;
+      await page.waitForLoadState('load').catch(() => {});
+    }
+  }
 }
 
 export async function reloadedProbe(page, action) {
