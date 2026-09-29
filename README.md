@@ -41,7 +41,17 @@ Karta wygląda normalnie: nie ma ramki telefonu ani małego okienka. Strona dost
 
 ## Instalacja
 
-### Z gotowej paczki (najprościej)
+### Windows – jednym poleceniem (najprościej)
+
+1. Otwórz **PowerShell** (Start → wpisz „PowerShell”) i wklej:
+   ```powershell
+   $d = "$env:USERPROFILE\Downloads\MobileEmulator"; Invoke-WebRequest https://github.com/matmaxalez/mobilebrowser/releases/latest/download/mobile-emulator.zip -OutFile "$d.zip"; Expand-Archive "$d.zip" $d -Force; Set-Clipboard $d; explorer $d
+   ```
+   Polecenie pobierze wtyczkę, rozpakuje ją do `Pobrane\MobileEmulator` i skopiuje tę ścieżkę do schowka.
+2. Wejdź na `chrome://extensions`, włącz **Tryb dewelopera** i kliknij **Załaduj rozpakowane**.
+3. W oknie wyboru folderu kliknij pasek adresu, wklej (Ctrl+V) i zatwierdź **Wybierz folder**.
+
+### Z gotowej paczki (ręcznie)
 
 1. Pobierz `mobile-emulator-v*.zip` z zakładki [**Releases**](https://github.com/matmaxalez/mobilebrowser/releases).
    Jeśli nie ma jeszcze wydania, kliknij na tej stronie **Code → Download ZIP** i użyj folderu `extension/`.

@@ -43,4 +43,10 @@ jobs:
           files: dist/*.zip
           generate_release_notes: true
           body: |
-            **Instalacja:** pobierz `mobile-emulator-${{ steps.version.outputs.tag }}.zip`, rozpakuj, otwórz `chrome://extensions`, włącz *Tryb dewelopera* i kliknij *Załaduj rozpakowane*, wskazując rozpakowany folder. Szczegóły w [README](https://github.com/${{ github.repository }}#instalacja).
+            **Instalacja na Windows (najprościej):** w PowerShellu uruchom
+            ```powershell
+            $d = "$env:USERPROFILE\Downloads\MobileEmulator"; Invoke-WebRequest https://github.com/${{ github.repository }}/releases/latest/download/mobile-emulator.zip -OutFile "$d.zip"; Expand-Archive "$d.zip" $d -Force; Set-Clipboard $d; explorer $d
+            ```
+            a potem w `chrome://extensions` → *Załaduj rozpakowane* wklej ścieżkę (Ctrl+V), która jest już w schowku.
+
+            **Ręcznie:** pobierz `mobile-emulator.zip`, rozpakuj, otwórz `chrome://extensions`, włącz *Tryb dewelopera* i kliknij *Załaduj rozpakowane*, wskazując rozpakowany folder. Szczegóły w [README](https://github.com/${{ github.repository }}#instalacja).

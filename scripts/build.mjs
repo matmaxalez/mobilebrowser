@@ -63,5 +63,8 @@ end.writeUInt16LE(central.length / 2, 8); end.writeUInt16LE(central.length / 2, 
 end.writeUInt32LE(cenBuf.length, 12); end.writeUInt32LE(offset, 16);
 
 mkdirSync(join(root, 'dist'), { recursive: true });
-writeFileSync(out, Buffer.concat([...local, cenBuf, end]));
-console.log(`${relative(root, out)} (${central.length / 2} files)`);
+const zip = Buffer.concat([...local, cenBuf, end]);
+writeFileSync(out, zip);
+// Unversioned copy, so .../releases/latest/download/mobile-emulator.zip is a stable link.
+writeFileSync(join(root, 'dist', 'mobile-emulator.zip'), zip);
+console.log(`${relative(root, out)} (${central.length / 2} files) + dist/mobile-emulator.zip`);
