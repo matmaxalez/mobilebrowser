@@ -1,0 +1,109 @@
+:root {
+  --bg: #f6f7f9;
+  --card: #ffffff;
+  --text: #111827;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --accent: #2563eb;
+  --on: #16a34a;
+  --lite: #f59e0b;
+  --danger: #dc2626;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111418;
+    --card: #1b1f25;
+    --text: #e5e7eb;
+    --muted: #9ca3af;
+    --border: #2d333b;
+    --accent: #60a5fa;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  width: 340px;
+  padding: 12px;
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+h1 { font-size: 15px; margin: 0; }
+.head { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+.sub { margin: 0; color: var(--muted); font-size: 12px; }
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.status { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.status-text { display: flex; flex-direction: column; min-width: 0; }
+.status-text span { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+.status.on { border-color: var(--on); box-shadow: inset 4px 0 0 var(--on); }
+.status.on.lite { border-color: var(--lite); box-shadow: inset 4px 0 0 var(--lite); }
+.status.disabled { opacity: .6; }
+
+.switch { position: relative; width: 46px; height: 26px; flex: none; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider {
+  position: absolute; inset: 0; border-radius: 26px; cursor: pointer;
+  background: #9ca3af; transition: background .15s;
+}
+.slider::before {
+  content: ""; position: absolute; width: 20px; height: 20px; left: 3px; top: 3px;
+  border-radius: 50%; background: #fff; transition: transform .15s;
+}
+.switch input:checked + .slider { background: var(--on); }
+.status.lite .switch input:checked + .slider { background: var(--lite); }
+.switch input:checked + .slider::before { transform: translateX(20px); }
+.switch input:disabled + .slider { cursor: not-allowed; }
+.switch input:focus-visible + .slider { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.field > span, .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
+.label { display: block; margin-bottom: 6px; }
+.grow { flex: 1; }
+.row { display: flex; gap: 8px; align-items: flex-end; }
+.row .field { min-width: 0; }
+select, input[type=number], input[type=text] {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+}
+.custom { border-top: 1px dashed var(--border); padding-top: 8px; margin-bottom: 4px; }
+.seg { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.seg button {
+  flex: 1; padding: 6px 4px; border: 0; background: transparent; color: var(--text);
+  font: inherit; cursor: pointer;
+}
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button.active { background: var(--accent); color: #fff; }
+.meta { margin: 0; color: var(--muted); font-size: 12px; }
+
+.mode { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; cursor: pointer; }
+.mode input { margin-top: 3px; }
+.mode small { display: block; color: var(--muted); }
+.check { display: flex; gap: 6px; align-items: center; margin-top: 6px; cursor: pointer; }
+.check.inline { margin: 0 0 14px; white-space: nowrap; }
+
+.error {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 0 0 10px;
+}
+.foot { color: var(--muted); font-size: 12px; text-align: center; }
+.foot a { color: var(--accent); }
+kbd {
+  font: 11px ui-monospace, monospace; padding: 1px 4px; border-radius: 4px;
+  border: 1px solid var(--border); background: var(--card);
+}

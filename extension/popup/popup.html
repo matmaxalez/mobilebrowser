@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <title>Mobile Emulator</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="head">
+    <img src="../icons/icon48.png" alt="" width="28" height="28">
+    <div>
+      <h1>Mobile Emulator</h1>
+      <p class="sub">Widok mobilny stron w tej karcie</p>
+    </div>
+  </header>
+
+  <section class="card status" id="statusCard">
+    <div class="status-text">
+      <strong id="statusLabel">Wyłączony</strong>
+      <span id="statusDetail">Kliknij, aby włączyć w tej karcie</span>
+    </div>
+    <label class="switch" title="Włącz / wyłącz (Alt+Shift+M)">
+      <input type="checkbox" id="toggle">
+      <span class="slider"></span>
+    </label>
+  </section>
+
+  <p class="error" id="error" hidden></p>
+
+  <section class="card">
+    <label class="field">
+      <span>Urządzenie</span>
+      <select id="device"></select>
+    </label>
+
+    <div id="customBox" class="custom" hidden>
+      <div class="row">
+        <label class="field"><span>Szerokość</span><input type="number" id="cWidth" min="200" max="3000"></label>
+        <label class="field"><span>Wysokość</span><input type="number" id="cHeight" min="200" max="3000"></label>
+        <label class="field"><span>DPR</span><input type="number" id="cDpr" min="1" max="5" step="0.125"></label>
+      </div>
+      <div class="row">
+        <label class="field"><span>System</span>
+          <select id="cOs"><option value="android">Android</option><option value="ios">iOS</option></select>
+        </label>
+        <label class="check inline"><input type="checkbox" id="cTablet"> Tablet</label>
+      </div>
+      <label class="field"><span>Własny User-Agent (opcjonalnie)</span>
+        <input type="text" id="cUa" placeholder="puste = automatyczny">
+      </label>
+    </div>
+
+    <div class="row">
+      <div class="field grow">
+        <span>Orientacja</span>
+        <div class="seg" role="radiogroup">
+          <button type="button" data-orient="portrait" class="active">▯ Pionowo</button>
+          <button type="button" data-orient="landscape">▭ Poziomo</button>
+        </div>
+      </div>
+      <label class="field" id="zoomField">
+        <span>Skala</span>
+        <select id="zoom">
+          <option value="fit">Dopasuj</option>
+          <option value="0.5">50%</option>
+          <option value="0.75">75%</option>
+          <option value="1">100%</option>
+          <option value="1.25">125%</option>
+          <option value="1.5">150%</option>
+        </select>
+      </label>
+    </div>
+    <p class="meta" id="deviceMeta"></p>
+  </section>
+
+  <section class="card">
+    <span class="label">Tryb emulacji</span>
+    <label class="mode">
+      <input type="radio" name="mode" value="full">
+      <div>
+        <strong>Pełny (zalecany)</strong>
+        <small>Jak tryb urządzenia w DevTools: viewport, DPR, dotyk, media queries, User-Agent i Client Hints. Chrome pokaże pasek „rozpoczęto debugowanie”.</small>
+      </div>
+    </label>
+    <label class="mode">
+      <input type="radio" name="mode" value="lite">
+      <div>
+        <strong>Lekki</strong>
+        <small>Bez paska debugowania: nagłówki + podmiana obiektu navigator, karta w oknie o rozmiarze telefonu.</small>
+      </div>
+    </label>
+    <label class="check" id="liteWindowRow"><input type="checkbox" id="liteWindow"> Otwórz kartę w oknie o rozmiarze telefonu</label>
+    <label class="check"><input type="checkbox" id="inherit"> Nowe karty otwarte z emulowanej karty też emuluj</label>
+  </section>
+
+  <footer class="foot">Skrót: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd> · <a href="#" id="shortcuts">zmień</a></footer>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
