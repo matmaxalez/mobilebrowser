@@ -96,7 +96,8 @@ function render() {
   const d = currentDevice();
   const w = settings.landscape ? d.height : d.width;
   const h = settings.landscape ? d.width : d.height;
-  els.meta.textContent = `${w} × ${h} px · DPR ${d.dpr} · ${d.os === 'ios' ? 'iOS / Safari' : 'Android / Chrome'}${d.tablet ? ' · tablet' : ''}`;
+  const wholeTab = settings.mode === 'full' && settings.viewport === 'tab';
+  els.meta.textContent = `Ekran ${w} × ${h}${wholeTab ? '' : ` · DPR ${d.dpr}`} · ${d.os === 'ios' ? 'iOS / Safari' : 'Android / Chrome'}${d.tablet ? ' · tablet' : ''}`;
 }
 
 async function update(patch) {
@@ -114,8 +115,14 @@ async function update(patch) {
 }
 
 async function init() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  tabId = tab?.id ?? null;
+  // ?tab=<id> lets tests and screenshots target a specific tab.
+  const forced = Number(new URLSearchParams(location.search).get('tab'));
+  if (forced) {
+    tabId = forced;
+  } else {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    tabId = tab?.id ?? null;
+  }
   const res = await send({ type: 'getState', tabId });
   ({ settings, devices, tabState, restricted } = res);
   renderDevices();

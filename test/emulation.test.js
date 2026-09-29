@@ -121,6 +121,18 @@ test('full mode, device viewport: iPhone 1:1 (viewport, DPR, touch, UA, no clien
   await page.close();
 });
 
+test('full mode, stretch viewport: phone layout width scaled to the tab', async () => {
+  await msg(br.ext, { type: 'saveSettings', settings: { mode: 'full', deviceId: 'galaxy-s24', landscape: false, viewport: 'stretch' } });
+  const { page, tabId } = await openProbe('&stretch=1');
+  const p = await reloadedProbe(page, () => msg(br.ext, { type: 'toggle', tabId }));
+  assert.equal(p.innerWidth, 360);
+  assert.match(p.ua, /Android/);
+  const scaled = await page.evaluate(() => window.visualViewport.scale);
+  assert.ok(scaled >= 1, `visual scale ${scaled}`);
+  await reloadedProbe(page, () => msg(br.ext, { type: 'toggle', tabId }));
+  await page.close();
+});
+
 test('lite mode in the same tab: headers + navigator, no debugger', async () => {
   await msg(br.ext, { type: 'saveSettings', settings: { mode: 'lite', deviceId: 'galaxy-s24', liteWindow: false, landscape: false } });
   const { page, tabId } = await openProbe('&same=1');

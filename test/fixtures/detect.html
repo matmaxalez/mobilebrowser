@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Co widzi strona?</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; margin: 0; background: #f6f7f9; color: #111827; }
+  header { padding: 24px; color: #fff; background: #6b7280; }
+  header.mobile { background: #16a34a; }
+  header h1 { margin: 0; font-size: 28px; }
+  main { padding: 16px 24px; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+  section { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 16px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; margin: 0 0 8px; }
+  dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; }
+  dt { color: #6b7280; } dd { margin: 0; word-break: break-all; font-family: ui-monospace, monospace; font-size: 13px; }
+  .yes { color: #16a34a; font-weight: 600; } .no { color: #9ca3af; }
+</style>
+</head>
+<body>
+<header id="head"><h1 id="verdict">…</h1><div id="why"></div></header>
+<main>
+  <section><h2>Serwer (nagłówki HTTP)</h2><dl id="server"></dl></section>
+  <section><h2>JavaScript</h2><dl id="js"></dl></section>
+  <section><h2>Dotyk i media queries</h2><dl id="touch"></dl></section>
+</main>
+<script>
+  const SERVER = /*__SERVER__*/{};
+  const fill = (id, rows) => {
+    document.getElementById(id).innerHTML = rows.map(([k, v]) => {
+      const cls = v === true ? 'yes' : v === false ? 'no' : '';
+      return `<dt>${k}</dt><dd class="${cls}">${v === true ? 'tak' : v === false ? 'nie' : String(v)}</dd>`;
+    }).join('');
+  };
+  const mm = q => matchMedia(q).matches;
+  const uad = navigator.userAgentData;
+  const mobileUA = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+  const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const coarse = mm('(pointer: coarse)');
+  const isMobile = mobileUA && touch;
+  document.getElementById('head').className = isMobile ? 'mobile' : '';
+  document.getElementById('verdict').textContent = isMobile ? '📱 Wersja MOBILNA' : '🖥️ Wersja DESKTOP';
+  document.getElementById('why').textContent = `User-Agent: ${mobileUA ? 'mobilny' : 'desktop'} · dotyk: ${touch ? 'tak' : 'nie'} · pointer: ${coarse ? 'coarse' : 'fine'}`;
+  fill('server', Object.keys(SERVER).length ? Object.entries(SERVER) : [['(brak)', 'otwórz przez serwer testowy']]);
+  fill('js', [
+    ['userAgent', navigator.userAgent],
+    ['platform', navigator.platform],
+    ['vendor', navigator.vendor],
+    ['userAgentData', uad ? `mobile=${uad.mobile}, platform=${uad.platform}` : 'brak (jak Safari)'],
+    ['screen', `${screen.width} × ${screen.height}`],
+    ['viewport', `${innerWidth} × ${innerHeight}`],
+    ['devicePixelRatio', devicePixelRatio]
+  ]);
+  fill('touch', [
+    ["'ontouchstart' in window", 'ontouchstart' in window],
+    ['maxTouchPoints', navigator.maxTouchPoints],
+    ['(pointer: coarse)', coarse],
+    ['(hover: none)', mm('(hover: none)')],
+    ['screen.orientation', screen.orientation?.type]
+  ]);
+</script>
+</body>
+</html>

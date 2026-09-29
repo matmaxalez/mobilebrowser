@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import { chromium } from 'playwright';
 
 export const EXT_PATH = path.resolve(import.meta.dirname, '..', 'extension');
+const DETECT = fs.readFileSync(path.join(import.meta.dirname, 'fixtures', 'detect.html'), 'utf8');
 
 // Page that records what the server saw (headers) and what the page sees (JS).
 const PROBE = headers => `<!doctype html><html><head>
@@ -29,7 +30,7 @@ const PROBE = headers => `<!doctype html><html><head>
 <a id="blank" href="/probe?child=1" target="_blank">child</a>
 </body></html>`;
 
-export async function startServer() {
+export async function startServer(port = 0) {
   const server = http.createServer((req, res) => {
     const h = {};
     for (const [k, v] of Object.entries(req.headers)) if (k === 'user-agent' || k.startsWith('sec-ch-ua')) h[k] = v;
@@ -38,18 +39,23 @@ export async function startServer() {
       'accept-ch': 'Sec-CH-UA-Model, Sec-CH-UA-Platform-Version',
       'cache-control': 'no-store'
     });
+    if (req.url.startsWith('/detect')) {
+      res.end(DETECT.replace('/*__SERVER__*/{}', JSON.stringify(h)));
+      return;
+    }
     res.end(PROBE(h));
   });
-  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  await new Promise(r => server.listen(port, '127.0.0.1', r));
   return { server, url: `http://127.0.0.1:${server.address().port}/probe` };
 }
 
-export async function launch() {
+export async function launch({ ignoreHTTPSErrors = false } = {}) {
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mobemu-'));
   const context = await chromium.launchPersistentContext(userDataDir, {
     channel: 'chromium',
     headless: true,
     viewport: null,
+    ignoreHTTPSErrors,
     args: [
       `--disable-extensions-except=${EXT_PATH}`,
       `--load-extension=${EXT_PATH}`,

@@ -140,15 +140,17 @@ async function viewportMetrics(tabId, cfg, device, width, height) {
     } catch (_) { /* fall through */ }
     return { width, height, deviceScaleFactor: device.dpr, scale: 1 };
   }
-  // 0 = keep the tab's own size and pixel ratio.
-  return { width: 0, height: 0, deviceScaleFactor: 0, scale: 1 };
+  // 0 = keep the tab's own size and pixel ratio. mobile:false avoids mobile
+  // text autosizing and meta-viewport zooming, so the page renders like a
+  // normal tab while identity, touch and screen still report a phone.
+  return { width: 0, height: 0, deviceScaleFactor: 0, scale: 1, mobile: false };
 }
 
 async function applyMetrics(tabId, cfg, device, width, height) {
   const vp = await viewportMetrics(tabId, cfg, device, width, height);
   await cdp(tabId, 'Emulation.setDeviceMetricsOverride', {
-    ...vp,
     mobile: true,
+    ...vp,
     screenWidth: width,
     screenHeight: height,
     screenOrientation: cfg.landscape

@@ -1,0 +1,33 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Check tag matches manifest version
+        run: |
+          v=$(node -p "require('./extension/manifest.json').version")
+          test "v$v" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME != manifest v$v"; exit 1; }
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true
+          body: |
+            **Instalacja:** pobierz `mobile-emulator-v*.zip`, rozpakuj, otwórz `chrome://extensions`, włącz *Tryb dewelopera* i kliknij *Załaduj rozpakowane*, wskazując rozpakowany folder. Szczegóły w [README](https://github.com/${{ github.repository }}#instalacja).
