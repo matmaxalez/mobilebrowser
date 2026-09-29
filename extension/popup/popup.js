@@ -2,7 +2,7 @@ const $ = id => document.getElementById(id);
 
 const els = {
   card: $('statusCard'), label: $('statusLabel'), detail: $('statusDetail'), toggle: $('toggle'),
-  error: $('error'), device: $('device'), meta: $('deviceMeta'), zoom: $('zoom'), zoomField: $('zoomField'),
+  error: $('error'), device: $('device'), meta: $('deviceMeta'), viewport: $('viewport'), viewportField: $('viewportField'),
   customBox: $('customBox'), cWidth: $('cWidth'), cHeight: $('cHeight'), cDpr: $('cDpr'), cOs: $('cOs'),
   cTablet: $('cTablet'), cUa: $('cUa'), liteWindow: $('liteWindow'), liteWindowRow: $('liteWindowRow'),
   inherit: $('inherit')
@@ -74,7 +74,7 @@ function render() {
     els.detail.textContent = active ? active.name : '';
   } else {
     els.label.textContent = 'Wyłączony';
-    els.detail.textContent = 'Kliknij, aby włączyć w tej karcie';
+    els.detail.textContent = 'Strona zobaczy telefon, karta zostaje normalna';
   }
 
   els.device.value = settings.deviceId;
@@ -86,8 +86,8 @@ function render() {
   for (const b of document.querySelectorAll('[data-orient]')) {
     b.classList.toggle('active', (b.dataset.orient === 'landscape') === !!settings.landscape);
   }
-  els.zoom.value = settings.zoom;
-  els.zoomField.hidden = settings.mode !== 'full';
+  els.viewport.value = settings.viewport;
+  els.viewportField.hidden = settings.mode !== 'full';
   for (const r of document.querySelectorAll('input[name=mode]')) r.checked = r.value === settings.mode;
   els.liteWindowRow.hidden = settings.mode !== 'lite';
   els.liteWindow.checked = !!settings.liteWindow;
@@ -134,7 +134,7 @@ async function init() {
   });
 
   els.device.addEventListener('change', () => update({ deviceId: els.device.value }));
-  els.zoom.addEventListener('change', () => update({ zoom: els.zoom.value }));
+  els.viewport.addEventListener('change', () => update({ viewport: els.viewport.value }));
   for (const b of document.querySelectorAll('[data-orient]')) {
     b.addEventListener('click', () => update({ landscape: b.dataset.orient === 'landscape' }));
   }

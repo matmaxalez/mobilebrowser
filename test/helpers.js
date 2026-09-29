@@ -1,0 +1,89 @@
+import http from 'node:http';
+import path from 'node:path';
+import os from 'node:os';
+import fs from 'node:fs';
+import { chromium } from 'playwright';
+
+export const EXT_PATH = path.resolve(import.meta.dirname, '..', 'extension');
+
+// Page that records what the server saw (headers) and what the page sees (JS).
+const PROBE = headers => `<!doctype html><html><head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+  window.__probe = {
+    server: ${JSON.stringify(headers)},
+    ua: navigator.userAgent,
+    platform: navigator.platform,
+    vendor: navigator.vendor,
+    maxTouchPoints: navigator.maxTouchPoints,
+    uad: navigator.userAgentData ? { mobile: navigator.userAgentData.mobile, platform: navigator.userAgentData.platform } : null,
+    innerWidth: innerWidth,
+    innerHeight: innerHeight,
+    dpr: devicePixelRatio,
+    screenWidth: screen.width,
+    touch: 'ontouchstart' in window,
+    coarse: matchMedia('(pointer: coarse)').matches,
+    hoverNone: matchMedia('(hover: none)').matches
+  };
+</script></head><body>
+<a id="blank" href="/probe?child=1" target="_blank">child</a>
+</body></html>`;
+
+export async function startServer() {
+  const server = http.createServer((req, res) => {
+    const h = {};
+    for (const [k, v] of Object.entries(req.headers)) if (k === 'user-agent' || k.startsWith('sec-ch-ua')) h[k] = v;
+    res.writeHead(200, {
+      'content-type': 'text/html; charset=utf-8',
+      'accept-ch': 'Sec-CH-UA-Model, Sec-CH-UA-Platform-Version',
+      'cache-control': 'no-store'
+    });
+    res.end(PROBE(h));
+  });
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  return { server, url: `http://127.0.0.1:${server.address().port}/probe` };
+}
+
+export async function launch() {
+  const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mobemu-'));
+  const context = await chromium.launchPersistentContext(userDataDir, {
+    channel: 'chromium',
+    headless: true,
+    viewport: null,
+    args: [
+      `--disable-extensions-except=${EXT_PATH}`,
+      `--load-extension=${EXT_PATH}`,
+      '--window-size=1280,900'
+    ]
+  });
+  let [sw] = context.serviceWorkers();
+  if (!sw) sw = await context.waitForEvent('serviceworker');
+  const extId = new URL(sw.url()).host;
+  const ext = await context.newPage();
+  await ext.goto(`chrome-extension://${extId}/popup/popup.html`);
+  return { context, sw, extId, ext, userDataDir };
+}
+
+// Sends a message to the background worker from an extension page.
+export function msg(ext, message) {
+  return ext.evaluate(m => chrome.runtime.sendMessage(m), message);
+}
+
+export async function tabIdOf(ext, url) {
+  return ext.evaluate(async u => {
+    const tabs = await chrome.tabs.query({});
+    return tabs.find(t => t.url === u)?.id;
+  }, url);
+}
+
+export async function probe(page) {
+  await page.waitForFunction(() => window.__probe, null, { timeout: 10000 });
+  return page.evaluate(() => window.__probe);
+}
+
+export async function reloadedProbe(page, action) {
+  const nav = page.waitForEvent('load', { timeout: 15000 });
+  await action();
+  await nav;
+  return probe(page);
+}

@@ -1,24 +1,28 @@
 import {
   DEVICES, resolveDevice, getBrowserVersion, buildProfile, buildHeaders, orientedSize
 } from './devices.js';
-import { mobileSpoof } from './spoof.js';
+import './spoof.js';
+
+const mobileSpoof = globalThis.__mobileEmuSpoof;
 
 // ---------------------------------------------------------------------------
 // Settings & state
 // ---------------------------------------------------------------------------
 
 export const DEFAULT_SETTINGS = {
-  deviceId: 'iphone-16-pro',
+  deviceId: 'pixel-9',
   mode: 'full',          // 'full' = chrome.debugger (DevTools device mode), 'lite' = headers + JS
   landscape: false,
-  zoom: 'fit',           // 'fit' or a number as string ('0.5', '1', ...) - full mode only
+  viewport: 'tab',       // full mode: 'tab' = whole tab, 'stretch' = phone width scaled to tab, 'device' = phone size 1:1
   inherit: true,         // tabs opened from an emulated tab are emulated too
-  liteWindow: true,      // lite mode: move the tab into a phone-sized window
+  liteWindow: false,     // lite mode: move the tab into a phone-sized window
   custom: { os: 'android', width: 390, height: 844, dpr: 3, tablet: false, userAgent: '' }
 };
 
 const RESOURCE_TYPES = ['main_frame', 'sub_frame', 'stylesheet', 'script', 'image', 'font', 'object',
   'xmlhttprequest', 'ping', 'csp_report', 'media', 'websocket', 'webtransport', 'webbundle', 'other'];
+
+const COOKIE_MAX_AGE = 30;
 
 let tabsCache = null; // { [tabId]: cfg }
 let versionPromise = null;
@@ -119,28 +123,32 @@ async function ensureAttached(tabId) {
   }
 }
 
-async function computeScale(tabId, zoom, width, height) {
-  if (zoom !== 'fit') {
-    const z = parseFloat(zoom);
-    return Number.isFinite(z) && z > 0 ? z : 1;
+// Viewport modes:
+//  - 'tab':     the page fills the whole tab at its real size (no phone frame);
+//               only identity/touch/screen say "mobile".
+//  - 'stretch': phone layout width, scaled up so it fills the tab width.
+//  - 'device':  exact phone viewport (1:1) in the top-left corner.
+async function viewportMetrics(tabId, cfg, device, width, height) {
+  if (cfg.viewport === 'device') return { width, height, deviceScaleFactor: device.dpr, scale: 1 };
+  if (cfg.viewport === 'stretch') {
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      if (tab.width && tab.height) {
+        const scale = Math.round((tab.width / width) * 1000) / 1000;
+        return { width, height: Math.max(100, Math.floor(tab.height / scale)), deviceScaleFactor: device.dpr, scale };
+      }
+    } catch (_) { /* fall through */ }
+    return { width, height, deviceScaleFactor: device.dpr, scale: 1 };
   }
-  try {
-    const tab = await chrome.tabs.get(tabId);
-    if (!tab.width || !tab.height) return 1;
-    const s = Math.min(tab.width / width, (tab.height - 8) / height);
-    return Math.max(0.25, Math.min(1, Math.round(s * 100) / 100));
-  } catch (_) {
-    return 1;
-  }
+  // 0 = keep the tab's own size and pixel ratio.
+  return { width: 0, height: 0, deviceScaleFactor: 0, scale: 1 };
 }
 
 async function applyMetrics(tabId, cfg, device, width, height) {
-  const scale = await computeScale(tabId, cfg.zoom, width, height);
+  const vp = await viewportMetrics(tabId, cfg, device, width, height);
   await cdp(tabId, 'Emulation.setDeviceMetricsOverride', {
-    width, height,
-    deviceScaleFactor: device.dpr,
+    ...vp,
     mobile: true,
-    scale,
     screenWidth: width,
     screenHeight: height,
     screenOrientation: cfg.landscape
@@ -168,11 +176,21 @@ async function applyFull(tabId, cfg) {
     try { await cdp(tabId, 'Page.removeScriptToEvaluateOnNewDocument', { identifier: cfg.scriptId }); } catch (_) { /* ignore */ }
   }
   const source = `(${mobileSpoof.toString()})(${JSON.stringify(pageConfig(cfg, device, profile, width, height, false))});`;
+  await cdp(tabId, 'Page.enable');
   const { identifier } = await cdp(tabId, 'Page.addScriptToEvaluateOnNewDocument', { source });
   return { scriptId: identifier };
 }
 
 async function disableFull(tabId) {
+  // Detaching should drop the overrides, but clear them explicitly: the
+  // visible size can otherwise stick when another client is attached.
+  for (const [method, params] of [
+    ['Emulation.clearDeviceMetricsOverride', {}],
+    ['Emulation.setTouchEmulationEnabled', { enabled: false }],
+    ['Emulation.setEmitTouchEventsForMouse', { enabled: false }]
+  ]) {
+    try { await cdp(tabId, method, params); } catch (_) { /* not attached */ }
+  }
   try { await chrome.debugger.detach({ tabId }); } catch (_) { /* already detached */ }
 }
 
@@ -181,18 +199,34 @@ async function disableFull(tabId) {
 // ---------------------------------------------------------------------------
 
 async function applyLite(tabId, cfg, { moveWindow = true } = {}) {
-  const { profile, width, height } = await profileFor(cfg);
+  const { device, profile, width, height } = await profileFor(cfg);
+  const [reqRuleId, cookieRuleId] = cfg.ruleIds || await allocateRuleIds();
+  const marker = encodeURIComponent(JSON.stringify(pageConfig(cfg, device, profile, width, height, true)));
   await chrome.declarativeNetRequest.updateSessionRules({
-    removeRuleIds: [tabId],
+    removeRuleIds: [reqRuleId, cookieRuleId],
     addRules: [{
-      id: tabId,
+      id: reqRuleId,
       priority: 1,
       action: { type: 'modifyHeaders', requestHeaders: buildHeaders(profile) },
       condition: { tabIds: [tabId], resourceTypes: RESOURCE_TYPES }
+    }, {
+      // Read (and deleted) synchronously by lite-content.js at document_start,
+      // so the spoof runs before any page script.
+      id: cookieRuleId,
+      priority: 1,
+      action: {
+        type: 'modifyHeaders',
+        responseHeaders: [{
+          header: 'set-cookie',
+          operation: 'append',
+          value: `__mobemu=${marker}; Path=/; Max-Age=${COOKIE_MAX_AGE}; SameSite=Lax`
+        }]
+      },
+      condition: { tabIds: [tabId], resourceTypes: ['main_frame', 'sub_frame'] }
     }]
   });
 
-  const extra = {};
+  const extra = { ruleIds: [reqRuleId, cookieRuleId] };
   if (cfg.liteWindow && moveWindow) {
     try {
       Object.assign(extra, await placeInPhoneWindow(tabId, cfg, width, height));
@@ -229,8 +263,23 @@ async function fitWindowToViewport(windowId, tabId, width, height) {
   }
 }
 
+// Two session rules per lite tab: request headers + marker cookie on documents.
+async function allocateRuleIds() {
+  const rules = await chrome.declarativeNetRequest.getSessionRules();
+  const tabs = await loadTabs();
+  const used = new Set(rules.map(r => r.id));
+  for (const cfg of Object.values(tabs)) for (const id of cfg.ruleIds || []) used.add(id);
+  const ids = [];
+  for (let id = 1; ids.length < 2; id++) if (!used.has(id)) ids.push(id);
+  return ids;
+}
+
+async function removeLiteRules(cfg) {
+  if (cfg?.ruleIds) await chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: cfg.ruleIds });
+}
+
 async function disableLite(tabId, cfg) {
-  await chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: [tabId] });
+  await removeLiteRules(cfg);
   if (!cfg?.phoneWindowId) return;
   try {
     const tab = await chrome.tabs.get(tabId);
@@ -261,9 +310,11 @@ async function injectLite(tabId, frameId, cfg) {
       func: mobileSpoof,
       args: [pageConfig(cfg, device, profile, width, height, true)]
     });
-  } catch (_) { /* restricted frame, ignore */ }
+  } catch (e) { console.debug('Mobile Emulator: inject failed', e.message); }
 }
 
+// Fallback for documents the marker cookie can't reach (e.g. third-party
+// frames with cookies blocked). The spoof is idempotent.
 chrome.webNavigation.onCommitted.addListener(async ({ tabId, frameId }) => {
   const cfg = await getTabState(tabId);
   if (cfg?.mode === 'lite') await injectLite(tabId, frameId, cfg);
@@ -274,8 +325,8 @@ chrome.webNavigation.onCommitted.addListener(async ({ tabId, frameId }) => {
 // ---------------------------------------------------------------------------
 
 function snapshot(settings) {
-  const { deviceId, mode, landscape, zoom, liteWindow, custom } = settings;
-  return { deviceId, mode, landscape, zoom, liteWindow, custom: { ...custom } };
+  const { deviceId, mode, landscape, viewport, liteWindow, custom } = settings;
+  return { deviceId, mode, landscape, viewport, liteWindow, custom: { ...custom } };
 }
 
 async function enableTab(tabId, cfg, { reload = true, moveWindow = true } = {}) {
@@ -349,7 +400,7 @@ async function reapplyTab(tabId, settings) {
       return state;
     }
     // lite
-    const keep = { phoneWindowId: old.phoneWindowId, originWindowId: old.originWindowId };
+    const keep = { phoneWindowId: old.phoneWindowId, originWindowId: old.originWindowId, ruleIds: old.ruleIds };
     await setTabState(tabId, { ...cfg, ...keep });
     const extra = await applyLite(tabId, { ...cfg, ...keep });
     const state = { ...cfg, ...keep, ...extra };
@@ -402,9 +453,10 @@ chrome.debugger.onDetach.addListener(async (source, reason) => {
 });
 
 chrome.tabs.onRemoved.addListener(async tabId => {
-  if (await getTabState(tabId)) {
+  const cfg = await getTabState(tabId);
+  if (cfg) {
     await setTabState(tabId, null);
-    try { await chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: [tabId] }); } catch (_) { /* ignore */ }
+    try { await removeLiteRules(cfg); } catch (_) { /* ignore */ }
   }
 });
 
@@ -429,11 +481,11 @@ chrome.tabs.onCreated.addListener(async tab => {
   });
 });
 
-// Keep "fit" zoom right when the window is resized.
+// Keep the 'stretch' viewport filling the tab when the window is resized.
 chrome.windows.onBoundsChanged?.addListener(async win => {
   const tabs = await loadTabs();
   for (const [id, cfg] of Object.entries(tabs)) {
-    if (cfg.mode !== 'full' || cfg.zoom !== 'fit') continue;
+    if (cfg.mode !== 'full' || cfg.viewport !== 'stretch') continue;
     const tabId = Number(id);
     try {
       const tab = await chrome.tabs.get(tabId);

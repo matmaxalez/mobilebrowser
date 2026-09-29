@@ -17,7 +17,7 @@
   <section class="card status" id="statusCard">
     <div class="status-text">
       <strong id="statusLabel">Wyłączony</strong>
-      <span id="statusDetail">Kliknij, aby włączyć w tej karcie</span>
+      <span id="statusDetail">Strona zobaczy telefon, karta zostaje normalna</span>
     </div>
     <label class="switch" title="Włącz / wyłącz (Alt+Shift+M)">
       <input type="checkbox" id="toggle">
@@ -52,24 +52,21 @@
 
     <div class="row">
       <div class="field grow">
-        <span>Orientacja</span>
+        <span>Orientacja ekranu</span>
         <div class="seg" role="radiogroup">
           <button type="button" data-orient="portrait" class="active">▯ Pionowo</button>
           <button type="button" data-orient="landscape">▭ Poziomo</button>
         </div>
       </div>
-      <label class="field" id="zoomField">
-        <span>Skala</span>
-        <select id="zoom">
-          <option value="fit">Dopasuj</option>
-          <option value="0.5">50%</option>
-          <option value="0.75">75%</option>
-          <option value="1">100%</option>
-          <option value="1.25">125%</option>
-          <option value="1.5">150%</option>
-        </select>
-      </label>
     </div>
+    <label class="field" id="viewportField">
+      <span>Widok</span>
+      <select id="viewport">
+        <option value="tab">Cała karta – bez ramki telefonu</option>
+        <option value="stretch">Szerokość telefonu, rozciągnięta na kartę</option>
+        <option value="device">Dokładny rozmiar telefonu (1:1)</option>
+      </select>
+    </label>
     <p class="meta" id="deviceMeta"></p>
   </section>
 
@@ -79,17 +76,17 @@
       <input type="radio" name="mode" value="full">
       <div>
         <strong>Pełny (zalecany)</strong>
-        <small>Jak tryb urządzenia w DevTools: viewport, DPR, dotyk, media queries, User-Agent i Client Hints. Chrome pokaże pasek „rozpoczęto debugowanie”.</small>
+        <small>Jak tryb urządzenia w DevTools: User-Agent, Client Hints, dotyk, media queries (pointer/hover), ekran telefonu. Chrome pokazuje pasek „rozpoczęto debugowanie”.</small>
       </div>
     </label>
     <label class="mode">
       <input type="radio" name="mode" value="lite">
       <div>
         <strong>Lekki</strong>
-        <small>Bez paska debugowania: nagłówki + podmiana obiektu navigator, karta w oknie o rozmiarze telefonu.</small>
+        <small>Bez paska debugowania: nagłówki HTTP + podmiana obiektu navigator w JS. CSS media queries dotyku nie zadziałają.</small>
       </div>
     </label>
-    <label class="check" id="liteWindowRow"><input type="checkbox" id="liteWindow"> Otwórz kartę w oknie o rozmiarze telefonu</label>
+    <label class="check" id="liteWindowRow"><input type="checkbox" id="liteWindow"> Przenieś kartę do okna o rozmiarze telefonu</label>
     <label class="check"><input type="checkbox" id="inherit"> Nowe karty otwarte z emulowanej karty też emuluj</label>
   </section>
 
