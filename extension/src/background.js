@@ -22,7 +22,12 @@ export const DEFAULT_SETTINGS = {
 const RESOURCE_TYPES = ['main_frame', 'sub_frame', 'stylesheet', 'script', 'image', 'font', 'object',
   'xmlhttprequest', 'ping', 'csp_report', 'media', 'websocket', 'webtransport', 'webbundle', 'other'];
 
-const COOKIE_MAX_AGE = 30;
+// Short-lived: the cookie only has to survive until document_start of the
+// response it came with (lite-content.js deletes it right away).
+const COOKIE_MAX_AGE = 5;
+
+// Lite-mode DNR rule ids handed out but maybe not yet stored in tab state.
+const reservedRuleIds = new Set();
 
 let tabsCache = null; // { [tabId]: cfg }
 let versionPromise = null;
@@ -179,7 +184,7 @@ async function applyFull(tabId, cfg) {
   }
   const source = `(${mobileSpoof.toString()})(${JSON.stringify(pageConfig(cfg, device, profile, width, height, false))});`;
   await cdp(tabId, 'Page.enable');
-  const { identifier } = await cdp(tabId, 'Page.addScriptToEvaluateOnNewDocument', { source });
+  const { identifier } = await cdp(tabId, 'Page.addScriptToEvaluateOnNewDocument', { source, runImmediately: true });
   return { scriptId: identifier };
 }
 
@@ -204,29 +209,52 @@ async function applyLite(tabId, cfg, { moveWindow = true } = {}) {
   const { device, profile, width, height } = await profileFor(cfg);
   const [reqRuleId, cookieRuleId] = cfg.ruleIds || await allocateRuleIds();
   const marker = encodeURIComponent(JSON.stringify(pageConfig(cfg, device, profile, width, height, true)));
-  await chrome.declarativeNetRequest.updateSessionRules({
-    removeRuleIds: [reqRuleId, cookieRuleId],
-    addRules: [{
-      id: reqRuleId,
-      priority: 1,
-      action: { type: 'modifyHeaders', requestHeaders: buildHeaders(profile) },
-      condition: { tabIds: [tabId], resourceTypes: RESOURCE_TYPES }
-    }, {
-      // Read (and deleted) synchronously by lite-content.js at document_start,
-      // so the spoof runs before any page script.
-      id: cookieRuleId,
-      priority: 1,
-      action: {
-        type: 'modifyHeaders',
-        responseHeaders: [{
+  const headerRule = {
+    id: reqRuleId,
+    priority: 1,
+    action: { type: 'modifyHeaders', requestHeaders: buildHeaders(profile) },
+    condition: { tabIds: [tabId], resourceTypes: RESOURCE_TYPES }
+  };
+  // The device profile rides on each document response of this tab and is
+  // read synchronously by lite-content.js at document_start, so the spoof runs
+  // before any page script:
+  //  - Server-Timing (per response, so it can never leak to other tabs),
+  //    readable via performance navigation timing in secure contexts;
+  //  - a short-lived cookie as fallback for plain http:// pages, where
+  //    serverTiming isn't exposed. The script deletes it right away.
+  const cookieRule = {
+    id: cookieRuleId,
+    priority: 1,
+    action: {
+      type: 'modifyHeaders',
+      responseHeaders: [
+        { header: 'server-timing', operation: 'append', value: `mobemu;desc="${marker}"` },
+        {
           header: 'set-cookie',
           operation: 'append',
           value: `__mobemu=${marker}; Path=/; Max-Age=${COOKIE_MAX_AGE}; SameSite=Lax`
-        }]
-      },
-      condition: { tabIds: [tabId], resourceTypes: ['main_frame', 'sub_frame'] }
-    }]
-  });
+        }
+      ]
+    },
+    condition: { tabIds: [tabId], resourceTypes: ['main_frame', 'sub_frame'] }
+  };
+  const removeRuleIds = [reqRuleId, cookieRuleId];
+  try {
+    // Chrome 128+: mark only HTML documents (not redirects, downloads, ...),
+    // so the cookie doesn't linger where no page script would delete it.
+    const htmlOnly = {
+      ...cookieRule,
+      condition: { ...cookieRule.condition, responseHeaders: [{ header: 'content-type', values: ['text/html*'] }] }
+    };
+    await chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds, addRules: [headerRule, htmlOnly] });
+  } catch (_) {
+    try {
+      await chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds, addRules: [headerRule, cookieRule] });
+    } catch (e) {
+      if (!cfg.ruleIds) for (const id of removeRuleIds) reservedRuleIds.delete(id);
+      throw e;
+    }
+  }
 
   const extra = { ruleIds: [reqRuleId, cookieRuleId] };
   if (cfg.liteWindow && moveWindow) {
@@ -266,18 +294,26 @@ async function fitWindowToViewport(windowId, tabId, width, height) {
 }
 
 // Two session rules per lite tab: request headers + marker cookie on documents.
+// Ids are reserved synchronously (after the last await), so concurrent
+// enables in different tabs can never pick the same ids.
 async function allocateRuleIds() {
   const rules = await chrome.declarativeNetRequest.getSessionRules();
   const tabs = await loadTabs();
-  const used = new Set(rules.map(r => r.id));
+  const used = new Set([...rules.map(r => r.id), ...reservedRuleIds]);
   for (const cfg of Object.values(tabs)) for (const id of cfg.ruleIds || []) used.add(id);
   const ids = [];
   for (let id = 1; ids.length < 2; id++) if (!used.has(id)) ids.push(id);
+  for (const id of ids) reservedRuleIds.add(id);
   return ids;
 }
 
 async function removeLiteRules(cfg) {
-  if (cfg?.ruleIds) await chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: cfg.ruleIds });
+  if (!cfg?.ruleIds) return;
+  try {
+    await chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: cfg.ruleIds });
+  } finally {
+    for (const id of cfg.ruleIds) reservedRuleIds.delete(id);
+  }
 }
 
 async function disableLite(tabId, cfg) {
@@ -326,6 +362,10 @@ chrome.webNavigation.onCommitted.addListener(async ({ tabId, frameId }) => {
 // Enable / disable
 // ---------------------------------------------------------------------------
 
+async function tabExists(tabId) {
+  try { await chrome.tabs.get(tabId); return true; } catch (_) { return false; }
+}
+
 function snapshot(settings) {
   const { deviceId, mode, landscape, viewport, liteWindow, custom } = settings;
   return { deviceId, mode, landscape, viewport, liteWindow, custom: { ...custom } };
@@ -337,21 +377,23 @@ async function enableTab(tabId, cfg, { reload = true, moveWindow = true } = {}) 
     throw new Error('Tej strony nie można emulować (strona wewnętrzna Chrome lub Chrome Web Store).');
   }
   let extra;
-  if (cfg.mode === 'lite') {
-    // Store state first so the navigation listener injects on the reload.
-    await setTabState(tabId, cfg);
-    extra = await applyLite(tabId, cfg, { moveWindow });
-  } else {
-    await setTabState(tabId, cfg);
-    try {
-      extra = await applyFull(tabId, cfg);
-    } catch (e) {
-      await setTabState(tabId, null);
-      await disableFull(tabId);
-      throw e;
-    }
+  // Store state first so the navigation listener already sees the tab.
+  await setTabState(tabId, cfg);
+  try {
+    extra = cfg.mode === 'lite' ? await applyLite(tabId, cfg, { moveWindow }) : await applyFull(tabId, cfg);
+  } catch (e) {
+    await setTabState(tabId, null);
+    if (cfg.mode === 'full') await disableFull(tabId);
+    await updateBadge(tabId);
+    throw e;
   }
   const state = { ...cfg, ...extra };
+  if (!(await tabExists(tabId))) {
+    // Closed while we were enabling it: don't resurrect its state.
+    await setTabState(tabId, null);
+    if (cfg.mode === 'lite') await removeLiteRules(state);
+    return null;
+  }
   await setTabState(tabId, state);
   await updateBadge(tabId);
   if (reload) await chrome.tabs.reload(tabId, { bypassCache: true });
@@ -387,6 +429,7 @@ async function reapplyTab(tabId, settings) {
     const old = await getTabState(tabId);
     if (!old) return null;
     const cfg = snapshot(settings);
+    if (JSON.stringify(snapshot(old)) === JSON.stringify(cfg)) return old;
     const uaChanged = old.deviceId !== cfg.deviceId || old.mode !== cfg.mode
       || JSON.stringify(old.custom) !== JSON.stringify(cfg.custom);
 
@@ -454,12 +497,14 @@ chrome.debugger.onDetach.addListener(async (source, reason) => {
   }
 });
 
-chrome.tabs.onRemoved.addListener(async tabId => {
-  const cfg = await getTabState(tabId);
-  if (cfg) {
-    await setTabState(tabId, null);
-    try { await removeLiteRules(cfg); } catch (_) { /* ignore */ }
-  }
+chrome.tabs.onRemoved.addListener(tabId => {
+  queued(tabId, async () => {
+    const cfg = await getTabState(tabId);
+    if (cfg) {
+      await setTabState(tabId, null);
+      try { await removeLiteRules(cfg); } catch (_) { /* ignore */ }
+    }
+  });
 });
 
 chrome.tabs.onUpdated.addListener(async (tabId, info) => {
@@ -478,7 +523,13 @@ chrome.tabs.onCreated.addListener(async tab => {
     try {
       // Give the new tab a moment to receive its URL.
       await new Promise(r => setTimeout(r, 50));
-      await enableTab(tab.id, cfg, { reload: cfg.mode === 'full', moveWindow: false });
+      const t = await chrome.tabs.get(tab.id);
+      const url = t.pendingUrl || t.url || '';
+      // The first request may already be on its way without our overrides, so
+      // reload real pages. Never reload blank popups the opener writes into
+      // (window.open('') + document.write) - that would wipe their content.
+      const reload = /^(https?|file):/i.test(url);
+      await enableTab(tab.id, cfg, { reload, moveWindow: false });
     } catch (_) { /* restricted or closed */ }
   });
 });
@@ -555,10 +606,9 @@ async function restore() {
   const tabs = await loadTabs();
   for (const [id, cfg] of Object.entries(tabs)) {
     const tabId = Number(id);
-    try {
-      await chrome.tabs.get(tabId);
-    } catch (_) {
+    if (!(await tabExists(tabId))) {
       await setTabState(tabId, null);
+      try { await removeLiteRules(cfg); } catch (_) { /* ignore */ }
       continue;
     }
     if (cfg.mode === 'full' && !(await isAttached(tabId))) {

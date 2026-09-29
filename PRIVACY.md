@@ -10,4 +10,4 @@
   - `scripting`, `webNavigation`, dostęp do stron (`<all_urls>`) – uruchomienie podmiany `navigator` przed skryptami strony;
   - `tabs` – rozpoznanie karty i jej adresu (np. żeby odmówić na stronach `chrome://`);
   - `storage` – zapis ustawień.
-- W trybie lekkim wtyczka ustawia w emulowanej karcie techniczne cookie `__mobemu` (ważne 30 s). Skrypt wtyczki usuwa je od razu po odczytaniu. Nie zawiera ono żadnych danych o Tobie, tylko profil emulowanego urządzenia.
+- W trybie lekkim wtyczka dopisuje do odpowiedzi stron w emulowanej karcie techniczny nagłówek `Server-Timing` (`mobemu`). Na stronach `http://` dopisuje też cookie `__mobemu` ważne 5 s, które skrypt wtyczki usuwa od razu po odczytaniu. Oba zawierają wyłącznie profil emulowanego urządzenia (UA, wymiary ekranu), żadnych danych o Tobie, i nie są wysyłane do żadnego serwera.

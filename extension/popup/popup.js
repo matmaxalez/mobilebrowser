@@ -64,6 +64,7 @@ function render() {
   els.card.classList.toggle('disabled', restricted && !on);
   els.toggle.checked = on;
   els.toggle.disabled = busy || (restricted && !on);
+  for (const el of document.querySelectorAll('select, input:not(#toggle), .seg button')) el.disabled = busy;
 
   const active = on ? devices.find(d => d.id === tabState.deviceId) : null;
   if (restricted && !on) {
@@ -104,14 +105,28 @@ async function update(patch) {
   settings = { ...settings, ...patch, custom: { ...settings.custom, ...(patch.custom || {}) } };
   render();
   showError('');
+  busy = true;
+  render();
   try {
     const res = await send({ type: 'saveSettings', settings, tabId });
     settings = res.settings;
-    if (tabState) tabState = res.tabState;
-    render();
   } catch (e) {
     showError(e.message);
   }
+  await refresh();
+  busy = false;
+  render();
+}
+
+// Re-read the real state: an operation may have half-succeeded (e.g. a mode
+// switch that disabled the old mode but failed to enable the new one).
+async function refresh() {
+  try {
+    const res = await send({ type: 'getState', tabId });
+    settings = res.settings;
+    tabState = res.tabState;
+    restricted = res.restricted;
+  } catch (_) { /* keep what we have */ }
 }
 
 async function init() {
@@ -135,7 +150,7 @@ async function init() {
       tabState = r.tabState;
     } catch (e) {
       showError(e.message);
-      try { tabState = (await send({ type: 'getState', tabId })).tabState; } catch (_) { tabState = null; }
+      await refresh();
     }
     busy = false; render();
   });

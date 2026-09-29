@@ -85,7 +85,7 @@ Object.defineProperty(globalThis, '__mobileEmuSpoof', {
     const origMatchMedia = window.matchMedia;
     if (origMatchMedia) {
       const T = '(min-width: 0px)';
-      const F = '(max-width: 0.001px)';
+      const F = '((min-width: 1px) and (max-width: 0px))'; // always false, even in 0-width frames
       const rewrite = q => String(q)
         .replace(/\(\s*(any-)?pointer\s*:\s*coarse\s*\)/gi, T)
         .replace(/\(\s*(any-)?pointer\s*:\s*(fine|none)\s*\)/gi, F)

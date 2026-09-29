@@ -45,11 +45,11 @@ Two modes, chosen in the popup and stored per tab in `chrome.storage.session`:
   - `stretch` = phone width, `scale` = tab width / phone width.
   - `device` = 1:1.
   - Always clear the overrides explicitly before `chrome.debugger.detach`, otherwise the viewport size can stick.
-- **Lite** (no debugger infobar). Two DNR **session** rules per tab, with IDs allocated at runtime (tab IDs can exceed int32 when doubled):
+- **Lite** (no debugger infobar). Two DNR **session** rules per tab. Rule IDs are allocated at runtime and reserved synchronously in `reservedRuleIds`, so concurrent enables never collide:
   1. request headers: UA + `sec-ch-ua*`;
-  2. `Set-Cookie: __mobemu=<profile JSON>; Max-Age=30` on main_frame/sub_frame responses.
+  2. on main_frame/sub_frame responses (HTML only on Chrome 128+), `Server-Timing: mobemu;desc="<profile JSON>"` plus a fallback `Set-Cookie: __mobemu=…; Max-Age=5`.
 
-  `lite-content.js` (MAIN world, `document_start`, all frames) reads and deletes that cookie synchronously and runs the spoof before page scripts. `webNavigation.onCommitted` + `scripting.executeScript` is only a fallback: `injectImmediately` loses the race against inline scripts.
+  `lite-content.js` (MAIN world, `document_start`, all frames) reads the profile synchronously from `performance.getEntriesByType('navigation')[0].serverTiming` and runs the spoof before page scripts. Server-Timing is per response, so it can't leak across tabs. The cookie is per host, not per tab, so it is always deleted and only trusted in insecure contexts, where `serverTiming` isn't exposed. `webNavigation.onCommitted` + `scripting.executeScript` is only a last-resort fallback, because `injectImmediately` loses the race against inline scripts.
 
 `spoof.js` is deliberately a **classic script**: it defines `globalThis.__mobileEmuSpoof` (non-enumerable). It is listed as a content script and also imported as a side effect by the module service worker. The function must stay **self-contained**, because it is serialized with `.toString()`. Its `cfg.lite` flag switches between the full-mode extras and the full JS spoof.
 
@@ -61,4 +61,7 @@ Two modes, chosen in the popup and stored per tab in `chrome.storage.session`:
 - `chrome.debugger.getTargets()` reports `attached: true` for tabs Playwright controls, so don't assert on it in tests.
 - Restricted URLs (`chrome://`, Web Store, …) are refused in `isRestrictedUrl`.
 - Bump `version` in both `extension/manifest.json` and `package.json`, update `CHANGELOG.md`, then tag `vX.Y.Z`. The release workflow builds the zip and checks that the tag matches the manifest.
+- Inherited tabs (`tabs.onCreated` with `openerTabId`) are reloaded only when they have an http(s)/file URL. Blank popups the opener writes into must not be reloaded.
+- `saveSettings` only re-applies (and possibly reloads) an emulated tab when its per-tab snapshot actually changed.
+- Known gap: in lite mode, requests made by a site's service worker carry `tabId -1` and bypass the tab-scoped rules.
 - When changing emulation behaviour, add or adjust an assertion in `test/emulation.test.js` and run `npm run check`.

@@ -187,6 +187,81 @@ test('lite mode can move the tab into a phone-sized window', async () => {
   assert.equal(res.tabState, null);
 });
 
+test('lite mode: two tabs enabled at once each get their own rules', async () => {
+  await msg(br.ext, { type: 'saveSettings', settings: { mode: 'lite', deviceId: 'pixel-8', liteWindow: false } });
+  const a = await openProbe('&pairA=1');
+  const b = await openProbe('&pairB=1');
+  const loads = [a.page.waitForEvent('load'), b.page.waitForEvent('load')];
+  const [ra, rb] = await Promise.all([
+    msg(br.ext, { type: 'toggle', tabId: a.tabId }),
+    msg(br.ext, { type: 'toggle', tabId: b.tabId })
+  ]);
+  assert.ok(ra.ok && rb.ok, ra.error || rb.error);
+  assert.notDeepEqual(ra.tabState.ruleIds, rb.tabState.ruleIds);
+  await Promise.all(loads);
+  for (const { page } of [a, b]) {
+    const p = await probe(page);
+    assert.match(p.server['user-agent'], /Android/);
+    assert.match(p.ua, /Android/);
+  }
+  // Disabling one must not affect the other.
+  await reloadedProbe(a.page, () => msg(br.ext, { type: 'toggle', tabId: a.tabId }));
+  const pb = await reloadedProbe(b.page, () => b.page.reload());
+  assert.match(pb.server['user-agent'], /Android/);
+  await reloadedProbe(b.page, () => msg(br.ext, { type: 'toggle', tabId: b.tabId }));
+  await a.page.close();
+  await b.page.close();
+});
+
+test('lite mode: tabs opened from an emulated tab inherit emulation', async () => {
+  await msg(br.ext, { type: 'saveSettings', settings: { mode: 'lite', deviceId: 'pixel-8', liteWindow: false, inherit: true } });
+  const { page, tabId } = await openProbe('&liteParent=1');
+  await reloadedProbe(page, () => msg(br.ext, { type: 'toggle', tabId }));
+  const [child] = await Promise.all([br.context.waitForEvent('page'), page.evaluate(() => document.getElementById('blank').click())]);
+  await child.waitForFunction(() => window.__probe && /Android/.test(window.__probe.server['user-agent']), null, { timeout: 15000 });
+  const pc = await probe(child);
+  assert.match(pc.ua, /Android/);
+  assert.equal(pc.touch, true);
+  await child.close();
+  await reloadedProbe(page, () => msg(br.ext, { type: 'toggle', tabId }));
+  await page.close();
+});
+
+test('full mode: blank popups written by the opener are not reloaded away', async () => {
+  await msg(br.ext, { type: 'saveSettings', settings: { mode: 'full', deviceId: 'pixel-8', viewport: 'tab', inherit: true } });
+  const { page, tabId } = await openProbe('&writer=1');
+  await reloadedProbe(page, () => msg(br.ext, { type: 'toggle', tabId }));
+  const [popup] = await Promise.all([
+    br.context.waitForEvent('page'),
+    page.evaluate(() => { const w = window.open(''); w.document.write('<p id="w">written</p>'); w.document.close(); })
+  ]);
+  await new Promise(r => setTimeout(r, 1500));
+  assert.equal(await popup.evaluate(() => document.getElementById('w')?.textContent), 'written');
+  await popup.close();
+  await reloadedProbe(page, () => msg(br.ext, { type: 'toggle', tabId }));
+  await page.close();
+});
+
+test('lite mode: marker cookie does not leak to other tabs after a redirect', async () => {
+  await msg(br.ext, { type: 'saveSettings', settings: { mode: 'lite', deviceId: 'pixel-8', liteWindow: false } });
+  const { page, tabId } = await openProbe('&leak=1');
+  await reloadedProbe(page, () => msg(br.ext, { type: 'toggle', tabId }));
+  const origin = new URL(srv.url).origin;
+  const other = origin.replace('127.0.0.1', 'localhost');
+  // Emulated tab goes 127.0.0.1/redirect -> localhost/probe.
+  await page.goto(`${origin}/redirect?to=${encodeURIComponent(other + '/probe?after=1')}`);
+  assert.match((await probe(page)).ua, /Android/);
+  // A normal tab on the redirecting origin must stay desktop.
+  const plain = await br.context.newPage();
+  await plain.goto(`${srv.url}?plain=1`);
+  const pp = await probe(plain);
+  assert.doesNotMatch(pp.ua, /Android/);
+  assert.equal(pp.touch, false);
+  await plain.close();
+  await reloadedProbe(page, () => msg(br.ext, { type: 'toggle', tabId }));
+  await page.close();
+});
+
 test('restricted pages are refused', async () => {
   const page = await br.context.newPage();
   await page.goto('chrome://version');

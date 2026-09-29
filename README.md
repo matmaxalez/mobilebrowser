@@ -107,6 +107,7 @@ Otwórz ją, włącz wtyczkę i sprawdź, czy nagłówek zmienia się z „🖥�
 - Nie da się emulować stron wewnętrznych Chrome (`chrome://…`) ani Chrome Web Store. Tak działa Chrome.
 - Strony, które rozpoznają urządzenie tylko po szerokości okna, pokażą układ mobilny dopiero w widoku „rozciągnięta” albo „1:1”.
 - Tryb lekki podmienia właściwości w JS. Zaawansowane skrypty antyfraudowe mogą to wykryć. Tryb pełny działa na poziomie silnika przeglądarki.
+- W trybie lekkim zapytania wysyłane przez service worker strony (np. w aplikacjach PWA) nie przechodzą przez reguły karty. Pełny tryb nie ma tego problemu.
 - Emulacja nie zmienia adresu IP, lokalizacji ani odcisku sprzętowego (WebGL, czcionki).
 
 ## Rozwój

@@ -51,7 +51,9 @@ Tak samo działa tryb urządzenia w DevTools, więc jest to najdokładniejsza me
 
 - `chrome.scripting.executeScript({ world: 'MAIN', injectImmediately: true })` wywołane z `webNavigation.onCommitted` działa „jak najszybciej, ale **nie gwarantuje** wykonania przed stroną”. Testy potwierdziły, że przegrywa z inline `<script>` w `<head>`.
 - Content script zadeklarowany z `world: 'MAIN'` i `run_at: 'document_start'` wykonuje się niezawodnie przed skryptami strony, ale nie da się go ograniczyć do jednej karty.
-- **Rozwiązanie w tej wtyczce:** reguła DNR dla konkretnej karty dopisuje do odpowiedzi dokumentu krótkotrwałe cookie `__mobemu` z profilem urządzenia. Content script w MAIN przy `document_start` czyta je synchronicznie z `document.cookie`, od razu kasuje i uruchamia podmianę. W kartach bez emulacji cookie nie istnieje i skrypt nic nie robi.
+- **Rozwiązanie w tej wtyczce:** reguła DNR dla konkretnej karty dopisuje do odpowiedzi dokumentu nagłówek `Server-Timing: mobemu;desc="<profil>"`. Content script w MAIN przy `document_start` czyta go synchronicznie z `performance.getEntriesByType('navigation')[0].serverTiming` i uruchamia podmianę. Nagłówek należy do jednej odpowiedzi, więc nie może trafić do innej karty. W kartach bez emulacji go nie ma i skrypt nic nie robi.
+- `serverTiming` jest dostępne tylko w bezpiecznych kontekstach (https, localhost). Dla zwykłych stron `http://` reguła dopisuje też cookie `__mobemu` ważne 5 s, tylko do odpowiedzi HTML. Skrypt zawsze je kasuje, a używa go tylko w niebezpiecznym kontekście.
+- Pierwsza wersja opierała się wyłącznie na cookie. Audyt wykazał, że cookie jest wspólne dla hosta, a nie dla karty. Dwie karty na tym samym hoście kasowały sobie nawzajem znacznik, a cookie z odpowiedzi 302 mogło zostać i włączyć emulację w zwykłej karcie.
 
 Źródło: https://developer.chrome.com/docs/extensions/reference/api/scripting
 

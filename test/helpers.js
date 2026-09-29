@@ -32,6 +32,14 @@ const PROBE = headers => `<!doctype html><html><head>
 
 export async function startServer(port = 0) {
   const server = http.createServer((req, res) => {
+    if (req.url.startsWith('/redirect')) {
+      // 302 to another origin (localhost <-> 127.0.0.1): nothing on this origin
+      // runs to delete a marker cookie set on the redirect response.
+      const target = new URL(req.url, 'http://x').searchParams.get('to');
+      res.writeHead(302, { location: target });
+      res.end();
+      return;
+    }
     const h = {};
     for (const [k, v] of Object.entries(req.headers)) if (k === 'user-agent' || k.startsWith('sec-ch-ua')) h[k] = v;
     res.writeHead(200, {
