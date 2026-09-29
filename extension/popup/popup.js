@@ -15,11 +15,10 @@ let tabState = null;
 let restricted = false;
 let busy = false;
 
-function send(msg) {
-  return chrome.runtime.sendMessage(msg).then(res => {
-    if (!res?.ok) throw new Error(res?.error || 'Nieznany błąd');
-    return res;
-  });
+async function send(msg) {
+  const res = await chrome.runtime.sendMessage(msg);
+  if (!res?.ok) throw new Error(res?.error || 'Nieznany błąd');
+  return res;
 }
 
 function showError(message) {

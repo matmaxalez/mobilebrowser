@@ -6,6 +6,13 @@ Guidance for Claude Code (and humans) working in this repository.
 
 **Mobile Emulator** is a Chrome extension (Manifest V3, no build step, no runtime dependencies). It makes websites in a tab believe they run on a phone. By default the page still fills the whole tab with no device frame; only identity, touch, pointer/hover and screen metrics change. The UI and user-facing strings are **Polish**. Code, comments and commit messages are in English.
 
+## AI tooling (per developer.chrome.com/docs/extensions/ai/build-with-ai)
+
+- **Skill `chrome-extensions`** (Google's Modern Web Guidance) is vendored in `.claude/skills/chrome-extensions`. Load it before changing the extension or anything store-related. Its "Mandatory Rules" and "Output Checklist" apply here. Update instructions are in `SOURCE.md` there.
+- **Chrome DevTools MCP** is configured in `.mcp.json` (`chrome-devtools-mcp --categoryExtensions --autoConnect`). On a local machine it can install and reload the unpacked `extension/` and inspect the popup and service worker in the user's Chrome. It needs `chrome://inspect/#remote-debugging` → "Allow remote debugging". It is not usable in the cloud sandbox; use `npm test` there.
+- **Whenever you are creating or making changes to a Chrome extension, create and manage a CHROMEWEBSTORE.md file. You can use the chrome-extensions skill to learn about the format of this file.** In this repo that means: when permissions, content scripts, user-facing features, UI or data handling change, update `CHROMEWEBSTORE.md` (permission justifications, description, version history, "Last Updated") and `PRIVACY.md`, and re-run `npm run screenshots` if the popup changed.
+- Service-worker code follows the skill: listeners registered synchronously at top level, async/await (no `.then()` chains), state in `chrome.storage.session` (in-memory values are only caches or short-lived locks), no long `setTimeout`s (use `chrome.alarms` if one is ever needed).
+
 ## Layout
 
 ```
@@ -20,6 +27,10 @@ extension/                 ← the shippable extension (load this folder unpacke
 scripts/                   build.mjs (zip), make-icons.mjs, screenshots.mjs, demo-server.mjs
 test/                      node:test + Playwright E2E tests, fixtures/detect.html
 docs/                      RESEARCH.md, img/ (README screenshots)
+store-assets/              Chrome Web Store screenshots (1280×800) + promo tile, generated
+CHROMEWEBSTORE.md          store listing, permission justifications, privacy disclosures
+.claude/skills/            vendored chrome-extensions skill
+.mcp.json                  Chrome DevTools MCP for local agent-driven testing
 ```
 
 ## Commands
@@ -31,7 +42,7 @@ npm test               # E2E: launches Chromium with the extension loaded (headl
 npm run build          # dist/mobile-emulator-v<version>.zip
 npm run check          # lint + test + build — run before pushing
 npm run demo           # http://127.0.0.1:8787/detect "what does the site see" page
-npm run screenshots    # regenerate docs/img/*.png
+npm run screenshots    # regenerate docs/img/*.png and store-assets/*.png
 ```
 
 In the Claude Code web sandbox, Chromium is at `/opt/pw-browsers`. Do **not** run `playwright install` there. CI runs `npx playwright install --with-deps chromium`.

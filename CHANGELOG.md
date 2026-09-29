@@ -2,6 +2,14 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/), wersjonowanie: [SemVer](https://semver.org/lang/pl/).
 
+## [1.0.1] – 2026-09-29
+
+### Zmienione
+- Opis w manifeście pisany z perspektywy użytkownika (zgodnie z wytycznymi Chrome Web Store), `homepage_url`.
+- `CHROMEWEBSTORE.md`, grafiki do sklepu w `store-assets/`, rozszerzona polityka prywatności.
+- Narzędzia AI zalecane przez Google: skill `chrome-extensions` w repo, Chrome DevTools MCP (`.mcp.json`).
+- Instrukcja w README dla błędu „Brak pliku manifestu” przy „Załaduj rozpakowane”.
+
 ## [1.0.0] – 2026-09-29
 
 ### Dodane

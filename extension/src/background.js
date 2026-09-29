@@ -562,11 +562,14 @@ chrome.commands.onCommand.addListener(async command => {
 // ---------------------------------------------------------------------------
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  handleMessage(msg).then(
-    result => sendResponse({ ok: true, ...result }),
-    err => sendResponse({ ok: false, error: err?.message || String(err) })
-  );
-  return true;
+  (async () => {
+    try {
+      sendResponse({ ok: true, ...(await handleMessage(msg)) });
+    } catch (err) {
+      sendResponse({ ok: false, error: err?.message || String(err) });
+    }
+  })();
+  return true; // keep the channel open for the async response
 });
 
 async function handleMessage(msg) {

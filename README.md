@@ -53,6 +53,12 @@ Karta wygląda normalnie: nie ma ramki telefonu ani małego okienka. Strona dost
 
 Wtyczka działa też w innych przeglądarkach opartych na Chromium: Edge, Brave, Opera i Vivaldi.
 
+> **Błąd „Brak pliku manifestu” / „Manifest file is missing or unreadable”?**
+> Wskazałeś folder o poziom za wysoko albo za nisko. Wybierz folder, w którym **bezpośrednio** leży plik `manifest.json`, obok folderów `icons`, `popup` i `src`:
+> - z paczki z Releases jest to folder, do którego rozpakowałeś ZIP. Jeśli Windows utworzył w nim jeszcze jeden folder `mobile-emulator-v1.0.0`, wskaż ten wewnętrzny;
+> - z „Code → Download ZIP” jest to `mobilebrowser-main\extension`, a nie `mobilebrowser-main`;
+> - samego pliku `.zip` nie da się załadować, trzeba go najpierw rozpakować (prawy przycisk → „Wyodrębnij wszystkie”).
+
 ### Z kodu źródłowego
 
 ```bash
@@ -120,6 +126,16 @@ npm run build         # paczka ZIP w dist/
 npm run screenshots   # odświeża zrzuty w docs/img/
 npm run icons         # generuje ikony PNG
 ```
+
+### Rozwój z AI
+
+Projekt jest przygotowany pod pracę z agentami AI zgodnie z zaleceniami Google ([Build extensions with AI](https://developer.chrome.com/docs/extensions/ai/build-with-ai)):
+
+- skill **chrome-extensions** z Modern Web Guidance jest w `.claude/skills/`. Claude Code wczytuje go automatycznie;
+- **Chrome DevTools MCP** jest skonfigurowany w `.mcp.json`. Agent może zainstalować, przeładować i sprawdzić wtyczkę w Twoim Chrome. Najpierw włącz `chrome://inspect/#remote-debugging` → „Allow remote debugging for this browser instance”;
+- [CHROMEWEBSTORE.md](CHROMEWEBSTORE.md) zawiera gotowe teksty i uzasadnienia uprawnień do Chrome Web Store, a `store-assets/` gotowe grafiki.
+
+Pełny zestaw skilli (także ogólny `modern-web-guidance`) zainstalujesz poleceniem `npx modern-web-guidance@latest install --choose`.
 
 Strukturę projektu i konwencje opisuje [CLAUDE.md](CLAUDE.md). Research i decyzje techniczne są w [docs/RESEARCH.md](docs/RESEARCH.md).
 
